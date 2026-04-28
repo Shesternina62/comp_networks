@@ -1,0 +1,10 @@
+{
+  "msg_id": 6,
+  "timestamp": 1777384839,
+  "sender": "w",
+  "receiver": "u",
+  "type": "MSG_PRIVATE",
+  "text": "hi",
+  "delivered": true,
+  "is_offline": false
+}
