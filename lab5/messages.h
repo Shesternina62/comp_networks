@@ -1,95 +1,82 @@
 #ifndef MESSAGES_H
 #define MESSAGES_H
 
-#include <sys/socket.h>
-#include <cstdint>
-#include <cstring>
-#include <string>
-#include <ctime>
-#include <atomic>
+#include <stdint.h>
+#include <time.h>
 
-#define PORT 8080
-#define MAX_NAME 32
-#define MAX_PAYLOAD 256
 
-#pragma pack(push, 1)
-struct MessageEx {
-    uint32_t length;
-    uint8_t  type;        
-    uint32_t msg_id;
+#define SERVER_PORT         8080
+#define WORKER_THREADS      10
+#define CONNECTION_QUEUE    100
+#define MAX_USER_LIMIT      100
+#define MAX_USERNAME_LEN    32
+#define MAX_PAYLOAD_SIZE    256
+#define MAX_TIMESTAMP_STR   32
 
-    char sender[MAX_NAME];    
-    char receiver[MAX_NAME];
 
-    time_t timestamp; 
+typedef struct
+{
+    uint32_t message_length;
+    uint8_t  message_type;
+    uint32_t message_id;
+    char     from_username[MAX_USERNAME_LEN];
+    char     to_username[MAX_USERNAME_LEN];
+    time_t   message_timestamp;
+    char     message_payload[MAX_PAYLOAD_SIZE];
+} NetworkPacket;
 
-    char payload[MAX_PAYLOAD];
 
-    MessageEx() {
-        length = 0;
-        type = 0;
-        msg_id = 0;
-        timestamp = time(nullptr);
-
-        memset(sender, 0, MAX_NAME);
-        memset(receiver, 0, MAX_NAME);
-        memset(payload, 0, MAX_PAYLOAD);
-    }
-};
-#pragma pack(pop)
-
-enum MessageType {
-    MSG_HELLO        = 1,
-    MSG_WELCOME      = 2,
-    MSG_TEXT         = 3,
-    MSG_PING         = 4,
-    MSG_PONG         = 5,
-    MSG_BYE          = 6,
-
-    MSG_AUTH         = 7,
-    MSG_PRIVATE      = 8,
-    MSG_ERROR        = 9,
-    MSG_SERVER_INFO  = 10,
-
-    MSG_LIST         = 11,
-    MSG_HISTORY      = 12,
-    MSG_HISTORY_DATA = 13,
-    MSG_HELP         = 14
+enum MessageTypes
+{
+    // Handshake & Connection
+    TYPE_HANDSHAKE      = 1,   // MSG_HELLO
+    TYPE_WELCOME        = 2,   // MSG_WELCOME
+    
+    // Basic Messaging
+    TYPE_PUBLIC_MSG     = 3,   // MSG_TEXT
+    TYPE_KEEPALIVE_REQ  = 4,   // MSG_PING
+    TYPE_KEEPALIVE_RESP = 5,   // MSG_PONG
+    TYPE_DISCONNECT     = 6,   // MSG_BYE
+    
+    // User Management
+    TYPE_AUTHENTICATE   = 7,   // MSG_AUTH
+    TYPE_PRIVATE_MSG    = 8,   // MSG_PRIVATE
+    TYPE_ERROR_RESP     = 9,   // MSG_ERROR
+    
+    // Info & Utilities
+    TYPE_SERVER_NOTIFY   = 10,  // MSG_SERVER_INFO
+    TYPE_USER_LIST_REQ   = 11,  // MSG_LIST
+    TYPE_HISTORY_REQ     = 12,  // MSG_HISTORY
+    TYPE_HISTORY_RESP    = 13,  // MSG_HISTORY_DATA
+    TYPE_HELP_REQ        = 14   // MSG_HELP
 };
 
-inline ssize_t sendAll(int sockfd, const void* data, size_t len) {
-    size_t total = 0;
-    const char* ptr = (const char*)data;
 
-    while (total < len) {
-        ssize_t sent = send(sockfd, ptr + total, len - total, 0);
-        if (sent <= 0) return sent;
-        total += sent;
-    }
-    return total;
-}
+#define PORT                SERVER_PORT
+#define THREAD_POOL_SIZE    WORKER_THREADS
+#define QUEUE_SIZE          CONNECTION_QUEUE
+#define MAX_CLIENTS         MAX_USER_LIMIT
 
-inline ssize_t recvAll(int sockfd, void* data, size_t len) {
-    size_t total = 0;
-    char* ptr = (char*)data;
+#define MAX_NAME            MAX_USERNAME_LEN
+#define MAX_PAYLOAD         MAX_PAYLOAD_SIZE
+#define MAX_TIME_STR        MAX_TIMESTAMP_STR
 
-    while (total < len) {
-        ssize_t r = recv(sockfd, ptr + total, len - total, 0);
-        if (r <= 0) return r;
-        total += r;
-    }
-    return total;
-}
+#define MessageEx           NetworkPacket
 
-inline bool sendMessageEx(int sockfd, MessageEx& msg) {
-    msg.length = sizeof(MessageEx) - sizeof(msg.length);
-    return sendAll(sockfd, &msg, sizeof(MessageEx)) == sizeof(MessageEx);
-}
+// Legacy enum values for compatibility
+#define MSG_HELLO           TYPE_HANDSHAKE
+#define MSG_WELCOME         TYPE_WELCOME
+#define MSG_TEXT            TYPE_PUBLIC_MSG
+#define MSG_PING            TYPE_KEEPALIVE_REQ
+#define MSG_PONG            TYPE_KEEPALIVE_RESP
+#define MSG_BYE             TYPE_DISCONNECT
+#define MSG_AUTH            TYPE_AUTHENTICATE
+#define MSG_PRIVATE         TYPE_PRIVATE_MSG
+#define MSG_ERROR           TYPE_ERROR_RESP
+#define MSG_SERVER_INFO     TYPE_SERVER_NOTIFY
+#define MSG_LIST            TYPE_USER_LIST_REQ
+#define MSG_HISTORY         TYPE_HISTORY_REQ
+#define MSG_HISTORY_DATA    TYPE_HISTORY_RESP
+#define MSG_HELP            TYPE_HELP_REQ
 
-inline bool recvMessageEx(int sockfd, MessageEx& msg) {
-    return recvAll(sockfd, &msg, sizeof(MessageEx)) == sizeof(MessageEx);
-}
-
-extern std::atomic<uint32_t> global_msg_id;
-
-#endif
+#endif // MESSAGES_H
